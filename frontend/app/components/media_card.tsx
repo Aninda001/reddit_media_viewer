@@ -1,42 +1,30 @@
 import React from "react";
 import { Card } from "primereact/card";
-import { Button } from "primereact/button";
 import { Avatar } from "primereact/avatar";
 import ReactPlayer from "react-player";
 import { Post } from "./gallery";
 
 export default function MediaCard({ post }: { post: Post }) {
     const header = (
-        <div className="flex flex-nowrap gap-1 ">
-            <Button
-                label={
-                    post.subreddit +
-                    "fhjfvbhdsfdhfdsgfdhsfdfvhdsh, fsvhdsggdfgdfgdfgdfg"
-                }
-                link
-                pt={{ label: { className: "truncate " } }}
-                className="flex-1 "
-                onClick={() => window.open(post.subreddit_href, "_blank")}
-            />
-            <Button
-                label={post.author}
-                link
-                pt={{ label: { className: "truncate " } }}
-                className="flex-1"
-                onClick={() => window.open(post.author_href, "_blank")}
-            />
+        <div className="flex flex-nowrap gap-1 justify-between">
+            <a
+                href={post.subreddit_href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 truncate p-4"
+            >
+                {post.subreddit}
+            </a>
+
+            <a
+                href={post.author_href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-1 truncate p-4 justify-end"
+            >
+                {post.author}
+            </a>
         </div>
-    );
-    const footer = (
-        <>
-            <Button label="Save" icon="pi pi-check" />
-            <Button
-                label="Cancel"
-                severity="secondary"
-                icon="pi pi-times"
-                style={{ marginLeft: "0.5em" }}
-            />
-        </>
     );
 
     return (
@@ -54,9 +42,7 @@ export default function MediaCard({ post }: { post: Post }) {
                         />
                     ) : null
                 }
-                // footer={footer}
                 header={header}
-                // className="bg-neutral-500"
                 pt={{
                     root: { className: "w-full" },
                     title: {
