@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import MediaCard from "./media_card";
 import { searchAtom } from "../page";
 import { useAtom } from "jotai";
@@ -41,9 +41,10 @@ export default function Gallery() {
         page_links: {},
     });
     const [search, setSearch] = useAtom(searchAtom);
-    const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(
-        null,
-    );
+    const [selectedPostIndex, setSelectedPostIndex] = useState<{
+        pind: number;
+        mind: number;
+    } | null>(null);
     const [visible, setVisible] = useState(false);
 
     const getUrl = () => {
@@ -78,6 +79,26 @@ export default function Gallery() {
         fetchData();
     }, [search.isSearching]);
 
+    const loadMore = async () => {
+        if (!posts.page_links.next) return;
+        setSearch((prev) => ({
+            ...prev,
+            isLoading: true,
+        }));
+        let url = getUrl() + `&after=${posts.page_links.next}`;
+        let res = await fetch(url);
+        let data = await res.json();
+        if (data.posts)
+            setPosts((prev) => ({
+                posts: [...prev.posts, ...data.posts],
+                page_links: data.page_links,
+            }));
+        setSearch((prev) => ({
+            ...prev,
+            isLoading: false,
+        }));
+    };
+
     useEffect(() => {
         if (visible) {
             document.body.style.overflow = "hidden";
@@ -100,8 +121,11 @@ export default function Gallery() {
     }, [visible]);
 
     const handleCardClick = (index: number) => {
-        setSelectedPostIndex(index);
+        setSelectedPostIndex({ pind: index, mind: 0 });
         setVisible(true);
+        if (!search.isLoading && index >= posts.posts.length - 5) {
+            loadMore();
+        }
     };
 
     const closeDialog = () => {
@@ -110,17 +134,43 @@ export default function Gallery() {
     };
 
     const goToNext = () => {
-        if (
-            selectedPostIndex !== null &&
-            selectedPostIndex < posts.posts.length - 1
-        ) {
-            setSelectedPostIndex(selectedPostIndex + 1);
+        if (selectedPostIndex === null) return;
+
+        const { pind, mind } = selectedPostIndex;
+        const currentPost = posts.posts[pind];
+
+        if (!currentPost?.media) return;
+        else if (mind < currentPost.media.length - 1) {
+            setSelectedPostIndex({ pind, mind: mind + 1 });
+        } else if (pind < posts.posts.length - 1) {
+            const nextPost = posts.posts[pind + 1];
+
+            if (nextPost?.media && nextPost.media.length > 0) {
+                setSelectedPostIndex({ pind: pind + 1, mind: 0 });
+            }
+        }
+        if (!search.isLoading && pind >= posts.posts.length - 5) {
+            loadMore();
         }
     };
 
     const goToPrev = () => {
-        if (selectedPostIndex !== null && selectedPostIndex > 0) {
-            setSelectedPostIndex(selectedPostIndex - 1);
+        if (selectedPostIndex === null) return;
+
+        const { pind, mind } = selectedPostIndex;
+
+        if (mind > 0) {
+            setSelectedPostIndex({ pind, mind: mind - 1 });
+        } else if (pind > 0) {
+            const prevPost = posts.posts[pind - 1];
+
+            if (prevPost?.media && prevPost.media.length > 0) {
+                setSelectedPostIndex({
+                    pind: pind - 1,
+
+                    mind: prevPost.media.length - 1,
+                });
+            }
         }
     };
 
@@ -135,8 +185,22 @@ export default function Gallery() {
         return () => window.removeEventListener("keydown", handleKeyPress);
     }, [visible, selectedPostIndex]);
 
-    const currentPost =
-        selectedPostIndex !== null ? posts.posts[selectedPostIndex] : null;
+    const currentPost = useMemo(
+        () =>
+            selectedPostIndex !== null
+                ? posts.posts[selectedPostIndex.pind]
+                : null,
+
+        [selectedPostIndex, posts.posts],
+    );
+    const currentMedia = useMemo(
+        () =>
+            selectedPostIndex !== null && currentPost?.media
+                ? currentPost.media[selectedPostIndex.mind]
+                : null,
+
+        [selectedPostIndex, currentPost],
+    );
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
@@ -203,28 +267,24 @@ export default function Gallery() {
                         </div>
 
                         <div className="max-w-full mx-4 max-h-full flex items-center justify-center pt-20 pb-16">
-                            {currentPost?.media &&
-                                currentPost.media.length > 0 &&
-                                (currentPost.media[0].kind === "image" ? (
-                                    <img
-                                        src={
-                                            currentPost.media[0].srcs?.[0] || ""
-                                        }
-                                        alt={currentPost.title}
-                                        className="max-w-full max-h-full object-contain"
-                                    />
-                                ) : (
-                                    <ReactPlayer
-                                        src={
-                                            currentPost.media[0].srcs?.[0] || ""
-                                        }
-                                        controls={true}
-                                        loop={true}
-                                        // playing={true}
-                                        width="90%"
-                                        height="90%"
-                                    />
-                                ))}
+                            {currentMedia && currentMedia.kind === "image" ? (
+                                <img
+                                    src={currentMedia.srcs?.[0] || ""}
+                                    key={currentMedia.srcs?.[0] || ""}
+                                    alt={currentPost?.title}
+                                    className="max-w-full max-h-full object-contain"
+                                />
+                            ) : (
+                                <ReactPlayer
+                                    src={currentMedia?.srcs?.[0] || ""}
+                                    key={currentMedia?.srcs?.[0] || ""}
+                                    controls={true}
+                                    loop={true}
+                                    // playing={true}
+                                    width="90%"
+                                    height="90%"
+                                />
+                            )}
                         </div>
 
                         <Button
@@ -237,7 +297,10 @@ export default function Gallery() {
                                 goToPrev();
                             }}
                             className="absolute left-4 z-40 top-1/2 -translate-y-1/2"
-                            disabled={selectedPostIndex === 0}
+                            disabled={
+                                selectedPostIndex?.pind === 0 &&
+                                selectedPostIndex?.mind === 0
+                            }
                             severity="info"
                             aria-label="Previous"
                         />
@@ -255,17 +318,20 @@ export default function Gallery() {
                             severity="info"
                             aria-label="Next"
                             disabled={
-                                selectedPostIndex === posts.posts.length - 1
+                                selectedPostIndex?.pind ===
+                                posts.posts.length - 1 &&
+                                selectedPostIndex?.mind ===
+                                (currentPost?.media?.length || 1) - 1
                             }
                         />
                         <div className="absolute bottom-0 left-0 right-0 z-50 gap-2 flex justify-center px-6 py-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                             {selectedPostIndex !== null && (
                                 <>
                                     <Chip
-                                        label={`Post : ${selectedPostIndex + 1} / ${posts.posts.length}`}
+                                        label={`Post : ${selectedPostIndex.pind + 1} / ${posts.posts.length}`}
                                     />
                                     <Chip
-                                        label={`Media : ${currentPost?.media?.length || 0}`}
+                                        label={`Media : ${selectedPostIndex.mind + 1} / ${currentPost?.media?.length}`}
                                     />
                                 </>
                             )}
