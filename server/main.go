@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -14,8 +15,8 @@ import (
 type Media struct {
 	Kind string `json:"kind"` // "video", "image", "hls", etc.
 	// Href   string   `json:"href,omitempty"`   // link wrapping the media (e.g. <a href="...">)
-	Srcs   []string `json:"srcs,omitempty"`   // one or more source URLs (video sources, image src)
-	Poster string   `json:"poster,omitempty"` // poster attribute for video
+	Srcs []string `json:"srcs,omitempty"` // one or more source URLs (video sources, image src)
+	// Poster string   `json:"poster,omitempty"` // poster attribute for video
 }
 
 type Post struct {
@@ -36,11 +37,53 @@ type PageLinks struct {
 	Prev string `json:"prev,omitempty"`
 }
 
+func transformMediaURL(redlibURL string) string {
+	redlibURL = strings.TrimSpace(redlibURL)
+	if redlibURL == "" {
+		return ""
+	}
+
+	// Pattern 1: /preview/pre/{id}.{ext}?format=... -> https://i.redd.it/{id}.{original_ext}
+	previewRe := regexp.MustCompile(`^/preview/pre/([^/?]+\.[^/?]+)`)
+	if matches := previewRe.FindStringSubmatch(redlibURL); len(matches) > 1 {
+		filename := matches[1]
+		// Remove query parameters by splitting on '?'
+		if idx := strings.Index(filename, "?"); idx != -1 {
+			filename = filename[:idx]
+		}
+		return "https://i.redd.it/" + filename
+	}
+
+	// Pattern 2: /img/{id}.{ext} -> https://i.redd.it/{id}.{ext}
+	imgRe := regexp.MustCompile(`^/img/([^/?]+)`)
+	if matches := imgRe.FindStringSubmatch(redlibURL); len(matches) > 1 {
+		filename := matches[1]
+		return "https://i.redd.it/" + filename
+	}
+
+	// Pattern 3: /hls/{id}/HLSPlaylist.m3u8 -> https://v.redd.it/{id}/HLSPlaylist.m3u8
+	hlsRe := regexp.MustCompile(`^/hls/([^/]+)/(.+)`)
+	if matches := hlsRe.FindStringSubmatch(redlibURL); len(matches) > 2 {
+		videoID := matches[1]
+		path := matches[2]
+		return "https://v.redd.it/" + videoID + "/" + path
+	}
+
+	return redlibURL
+}
+
 func resolveAbs(base *url.URL, ref string) string {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return ""
 	}
+
+	if strings.HasPrefix(ref, "/preview/pre/") ||
+		strings.HasPrefix(ref, "/img/") ||
+		strings.HasPrefix(ref, "/hls/") {
+		return transformMediaURL(ref)
+	}
+
 	u, err := url.Parse(ref)
 	if err != nil {
 		return ref
@@ -106,14 +149,21 @@ func main() {
 				m.Find("video").Each(func(_ int, v *goquery.Selection) {
 					var media Media
 					media.Kind = "video"
-					if poster, ok := v.Attr("poster"); ok {
-						media.Poster = resolveAbs(base, poster)
-					}
+					// if poster, ok := v.Attr("poster"); ok {
+					// 	media.Poster = resolveAbs(base, poster)
+					// }
 					if vs, ok := v.Attr("src"); ok && strings.TrimSpace(vs) != "" {
+						if strings.Contains(vs, ".gif") && !strings.Contains(vs, "/external-pre/") {
+							media.Kind = "image"
+						}
+
 						media.Srcs = append(media.Srcs, resolveAbs(base, vs))
 					}
 					v.Find("source").Each(func(_ int, src *goquery.Selection) {
 						if ssrc, ok := src.Attr("src"); ok && strings.TrimSpace(ssrc) != "" {
+							if strings.Contains(ssrc, ".gif") && !strings.Contains(ssrc, "/external-pre/") {
+								media.Kind = "image"
+							}
 							media.Srcs = append(media.Srcs, resolveAbs(base, ssrc))
 						}
 					})
@@ -200,9 +250,9 @@ func main() {
 					return
 				}
 
-				galleryDoc.Find("div.gallery figure a").Each(func(i int, a *goquery.Selection) {
-					if href, ok := a.Attr("href"); ok {
-						mediaURL := base_url + href
+				galleryDoc.Find("div.gallery figure img").Each(func(i int, a *goquery.Selection) {
+					if href, ok := a.Attr("src"); ok {
+						mediaURL := resolveAbs(base, href)
 						p.Media = append(p.Media, Media{
 							Kind: "image", // or "gif" if you want to check extension
 							Srcs: []string{mediaURL},

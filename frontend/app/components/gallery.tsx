@@ -47,7 +47,8 @@ export default function Gallery() {
         mind: number;
     } | null>(null);
     const [visible, setVisible] = useState(false);
-    const playerRef = useRef<ReactPlayer | null>(null);
+    const playerRef = useRef<HTMLVideoElement | null>(null);
+    const loaderRef = useRef<HTMLDivElement | null>(null);
 
     const getUrl = () => {
         let baseUrl = "http://localhost:8081";
@@ -68,6 +69,7 @@ export default function Gallery() {
                 ...prev,
                 isLoading: true,
             }));
+            setPosts({ posts: [], page_links: {} });
             let url = getUrl();
             let res = await fetch(url);
             let data = await res.json();
@@ -100,6 +102,29 @@ export default function Gallery() {
             isLoading: false,
         }));
     };
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const target = entries[0];
+                if (
+                    target.isIntersecting &&
+                    !search.isLoading &&
+                    !search.isSearching &&
+                    posts.page_links.next
+                ) {
+                    loadMore();
+                }
+            },
+            { rootMargin: "300px" },
+        );
+        if (loaderRef.current) {
+            observer.observe(loaderRef.current);
+        }
+        return () => {
+            observer.disconnect();
+        };
+    }, [posts.page_links.next, search.isLoading, search.isSearching]);
 
     useEffect(() => {
         if (visible) {
@@ -181,22 +206,21 @@ export default function Gallery() {
         if (e.key === "ArrowDown") goToNext();
         if (e.key === "ArrowUp") goToPrev();
 
-        const internalPlayer = playerRef.current?.getInternalPlayer();
-        if (e.key === " " && internalPlayer) {
-            if (internalPlayer.paused) {
-                internalPlayer.play();
+        if (e.key === " " && playerRef.current) {
+            if (playerRef.current?.paused) {
+                playerRef.current.play();
             } else {
-                internalPlayer.pause();
+                playerRef.current.pause();
             }
         }
         if (e.key === "ArrowRight") {
-            if (internalPlayer) {
-                internalPlayer.currentTime += 5;
+            if (playerRef.current) {
+                playerRef.current.currentTime += 5;
             }
         }
         if (e.key === "ArrowLeft") {
-            if (internalPlayer) {
-                internalPlayer.currentTime -= 5;
+            if (playerRef.current) {
+                playerRef.current.currentTime -= 5;
             }
         }
     };
@@ -232,7 +256,7 @@ export default function Gallery() {
                             onClick={() => handleCardClick(index)}
                             className="cursor-pointer"
                         >
-                            <MediaCard key={post.id} post={post} />
+                            <MediaCard key={post.id} post={post} ind={index} />
                         </div>
                     ))}
             </div>
@@ -241,10 +265,12 @@ export default function Gallery() {
                     <ProgressSpinner />
                 </div>
             )}
+            <div ref={loaderRef} className="h-4" />
             {visible && (
                 <div
                     className="fixed inset-0 w-full h-full z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
-                // onClick={closeDialog} //to stop closing when clicking
+                    // onClick={closeDialog}
+                    //to stop closing when clicking
                 >
                     <div className="relative w-full h-full flex flex-col items-center justify-center">
                         <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
@@ -298,23 +324,17 @@ export default function Gallery() {
                             ) : (
                                 <ReactPlayer
                                     ref={playerRef}
-                                    url={currentMedia?.srcs?.[0] || ""}
+                                    src={currentMedia?.srcs?.[0] || ""}
                                     key={currentMedia?.srcs?.[0] || ""}
                                     controls={true}
                                     loop={true}
-                                    onReady={() => {
-                                        setTimeout(() => {
-                                            const internalPlayer =
-                                                playerRef.current?.getInternalPlayer();
-
-                                            if (internalPlayer) {
-                                                internalPlayer.play();
-                                            }
-                                        }, 100);
+                                    onCanPlayThrough={() => {
+                                        playerRef.current?.play();
                                     }}
                                     width="95%"
                                     height="100%"
                                     style={{ objectFit: "contain" }}
+                                    onError={(e) => console.log(e)}
                                 />
                             )}
                         </div>
@@ -351,9 +371,9 @@ export default function Gallery() {
                             aria-label="Next"
                             disabled={
                                 selectedPostIndex?.pind ===
-                                posts.posts.length - 1 &&
+                                    posts.posts.length - 1 &&
                                 selectedPostIndex?.mind ===
-                                (currentPost?.media?.length || 1) - 1
+                                    (currentPost?.media?.length || 1) - 1
                             }
                         />
                         <div className="absolute bottom-0 left-0 right-0 z-50 gap-2 flex justify-center px-6 py-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">

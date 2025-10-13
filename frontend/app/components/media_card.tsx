@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card } from "primereact/card";
 import { Avatar } from "primereact/avatar";
 import ReactPlayer from "react-player";
 import { Post } from "./gallery";
 
-export default function MediaCard({ post }: { post: Post }) {
+export default function MediaCard({ post, ind }: { post: Post; ind: number }) {
     const header = (
         <div className="flex flex-nowrap gap-1 justify-between">
             <a
@@ -15,7 +15,6 @@ export default function MediaCard({ post }: { post: Post }) {
             >
                 {post.subreddit}
             </a>
-
             <a
                 href={post.author_href}
                 target="_blank"
@@ -28,7 +27,7 @@ export default function MediaCard({ post }: { post: Post }) {
     );
 
     return (
-        <div className="card flex truncate justify-content-center ">
+        <div className="card flex truncate justify-content-center">
             <Card
                 title={post.title}
                 subTitle={
@@ -59,17 +58,22 @@ export default function MediaCard({ post }: { post: Post }) {
                                 post.media[0].srcs ? post.media[0].srcs[0] : ""
                             }
                             className="object-contain w-[100%] h-[300px] "
+                            loading="lazy"
                         />
                     ) : (
                         <ReactPlayer
-                            url={
+                            src={
                                 post.media[0].srcs ? post.media[0].srcs[0] : ""
                             }
                             controls={true}
                             loop={true}
                             width="100%"
                             height="300px"
+                            preload="metadata"
                             style={{ objectFit: "contain" }}
+                            onError={(e) =>
+                                console.log("Error loading video", e)
+                            }
                         />
                     ))}
             </Card>
