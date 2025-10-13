@@ -62,7 +62,7 @@ export default function MediaCard({ post }: { post: Post }) {
                         />
                     ) : (
                         <ReactPlayer
-                            src={
+                            url={
                                 post.media[0].srcs ? post.media[0].srcs[0] : ""
                             }
                             controls={true}

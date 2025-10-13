@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import MediaCard from "./media_card";
 import { searchAtom } from "../page";
 import { useAtom } from "jotai";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Button } from "primereact/button";
 import ReactPlayer from "react-player";
+// use react-player 2.16.1 the latest version have type issue
 import { Chip } from "primereact/chip";
 
 interface Media {
@@ -46,6 +47,7 @@ export default function Gallery() {
         mind: number;
     } | null>(null);
     const [visible, setVisible] = useState(false);
+    const playerRef = useRef<ReactPlayer | null>(null);
 
     const getUrl = () => {
         let baseUrl = "http://localhost:8081";
@@ -176,8 +178,27 @@ export default function Gallery() {
 
     const handleKeyPress = (e: KeyboardEvent) => {
         if (!visible) return;
-        if (e.key === "ArrowRight" || e.key === "ArrowDown") goToNext();
-        if (e.key === "ArrowLeft" || e.key === "ArrowUp") goToPrev();
+        if (e.key === "ArrowDown") goToNext();
+        if (e.key === "ArrowUp") goToPrev();
+
+        const internalPlayer = playerRef.current?.getInternalPlayer();
+        if (e.key === " " && internalPlayer) {
+            if (internalPlayer.paused) {
+                internalPlayer.play();
+            } else {
+                internalPlayer.pause();
+            }
+        }
+        if (e.key === "ArrowRight") {
+            if (internalPlayer) {
+                internalPlayer.currentTime += 5;
+            }
+        }
+        if (e.key === "ArrowLeft") {
+            if (internalPlayer) {
+                internalPlayer.currentTime -= 5;
+            }
+        }
     };
 
     useEffect(() => {
@@ -272,17 +293,28 @@ export default function Gallery() {
                                     src={currentMedia.srcs?.[0] || ""}
                                     key={currentMedia.srcs?.[0] || ""}
                                     alt={currentPost?.title}
-                                    className="max-w-full max-h-full object-contain"
+                                    className="max-w-[95%] max-h-full object-contain"
                                 />
                             ) : (
                                 <ReactPlayer
-                                    src={currentMedia?.srcs?.[0] || ""}
+                                    ref={playerRef}
+                                    url={currentMedia?.srcs?.[0] || ""}
                                     key={currentMedia?.srcs?.[0] || ""}
                                     controls={true}
                                     loop={true}
-                                    // playing={true}
-                                    width="90%"
-                                    height="90%"
+                                    onReady={() => {
+                                        setTimeout(() => {
+                                            const internalPlayer =
+                                                playerRef.current?.getInternalPlayer();
+
+                                            if (internalPlayer) {
+                                                internalPlayer.play();
+                                            }
+                                        }, 100);
+                                    }}
+                                    width="95%"
+                                    height="100%"
+                                    style={{ objectFit: "contain" }}
                                 />
                             )}
                         </div>
