@@ -55,9 +55,9 @@ export default function Gallery() {
         if (search.type === "search") {
             return `${baseUrl}/search?q=${search.query}&sort=${search.sort.toLowerCase()}&time=${search.time.toLowerCase()}`;
         } else if (search.type === "user") {
-            return `${baseUrl}/user/${search.query}/submitted?sort=${search.sort.toLowerCase()}}`;
+            return `${baseUrl}/user/${search.query}/submitted?sort=${search.sort.toLowerCase()}`;
         } else if (search.type === "subreddit") {
-            return `${baseUrl}/r/${search.query}?sort=${search.sort.toLowerCase()}&time=${search.time.toLowerCase()}`;
+            return `${baseUrl}/r/${search.query}/${search.sort.toLowerCase()}?time=${search.time.toLowerCase()}`;
         }
         return baseUrl;
     };
@@ -69,11 +69,10 @@ export default function Gallery() {
                 ...prev,
                 isLoading: true,
             }));
-            setPosts({ posts: [], page_links: {} });
             let url = getUrl();
             let res = await fetch(url);
             let data = await res.json();
-            if (data.posts) setPosts(data);
+            setPosts(data);
             setSearch((prev) => ({
                 ...prev,
                 isLoading: false,
@@ -92,11 +91,11 @@ export default function Gallery() {
         let url = getUrl() + `&after=${posts.page_links.next}`;
         let res = await fetch(url);
         let data = await res.json();
-        if (data.posts)
-            setPosts((prev) => ({
-                posts: [...prev.posts, ...data.posts],
-                page_links: data.page_links,
-            }));
+        setPosts((prev) => ({
+            posts: [...prev.posts, ...data.posts],
+            page_links: data.page_links,
+        }));
+
         setSearch((prev) => ({
             ...prev,
             isLoading: false,
@@ -250,14 +249,14 @@ export default function Gallery() {
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                 {!search.isSearching &&
-                    posts.posts.map((post: Post, index: number) => (
-                        <div
+                    posts.posts?.map((post: Post, index: number) => (
+                        <MediaCard
                             key={post.id}
-                            onClick={() => handleCardClick(index)}
-                            className="cursor-pointer"
-                        >
-                            <MediaCard key={post.id} post={post} ind={index} />
-                        </div>
+                            post={post}
+                            click={handleCardClick}
+                            index={index}
+                            customClass="cursor-pointer"
+                        />
                     ))}
             </div>
             {search.isLoading && (

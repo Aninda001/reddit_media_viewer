@@ -139,7 +139,7 @@ func main() {
 			http.Error(w, "bad base url: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		var posts []Post
+		posts := make([]Post, 0, 25)
 
 		doc.Find(".post").Each(func(i int, s *goquery.Selection) {
 			var p Post
@@ -281,7 +281,7 @@ func main() {
 			if au := s.Find(".post_author"); au.Length() > 0 {
 				p.Author = strings.TrimSpace(au.Text())
 				if href, ok := au.Attr("href"); ok {
-					p.AuthorHref = href + "/submitted"
+					p.AuthorHref = href
 				}
 			}
 

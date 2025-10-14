@@ -4,7 +4,17 @@ import { Avatar } from "primereact/avatar";
 import ReactPlayer from "react-player";
 import { Post } from "./gallery";
 
-export default function MediaCard({ post, ind }: { post: Post; ind: number }) {
+export default function MediaCard({
+    post,
+    customClass,
+    click,
+    index,
+}: {
+    post: Post;
+    customClass?: string;
+    index: number;
+    click: (index: number) => void;
+}) {
     const header = (
         <div className="flex flex-nowrap gap-1 justify-between">
             <a
@@ -42,12 +52,18 @@ export default function MediaCard({ post, ind }: { post: Post; ind: number }) {
                     ) : null
                 }
                 header={header}
+                className={` w-full ${customClass}`}
                 pt={{
-                    root: { className: "w-full" },
+                    // root: { className: "w-full" },
                     title: {
                         className: "text-wrap font-normal leading-none text-lg",
                     },
-                    body: { className: "pt-0" },
+                    body: {
+                        className: "pt-0",
+                        onClick: () => {
+                            click(index);
+                        },
+                    },
                 }}
             >
                 {post.media &&

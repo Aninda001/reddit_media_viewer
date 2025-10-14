@@ -1,16 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { SelectButton, SelectButtonChangeEvent } from "primereact/selectbutton";
 import { Dropdown, DropdownChangeEvent } from "primereact/dropdown";
 import { useAtom } from "jotai";
 import { searchAtom } from "../page";
 
 export default function Sort() {
-    const justifyOptions: string[] = [
+    const searchOptions: string[] = [
         "Relevance",
         "Hot",
         "Top",
         "New",
         "Comments",
+    ];
+    const sr_userOptions: string[] = [
+        "Hot",
+        "Top",
+        "New",
+        "Rising",
+        "Controversial",
     ];
     const timeOptions: string[] = [
         "All",
@@ -21,6 +28,17 @@ export default function Sort() {
         "Hour",
     ];
     const [search, setSearch] = useAtom(searchAtom);
+    useEffect(() => {
+        const currentOptions =
+            search.type === "search" ? searchOptions : sr_userOptions;
+
+        if (!currentOptions.includes(search.sort)) {
+            setSearch((prev) => ({
+                ...prev,
+                sort: currentOptions[0],
+            }));
+        }
+    }, [search.type]);
 
     return (
         <div className="card flex justify-between ">
@@ -32,8 +50,10 @@ export default function Sort() {
                         sort: e.value,
                     }))
                 }
-                options={justifyOptions}
-                className="hidden md:flex rounded-t-none"
+                options={
+                    search.type === "search" ? searchOptions : sr_userOptions
+                }
+                className="hidden lg:flex rounded-t-none"
             />
             <Dropdown
                 value={search.sort}
@@ -43,31 +63,37 @@ export default function Sort() {
                         sort: e.value,
                     }))
                 }
-                options={justifyOptions}
-                className="md:hidden w-full rounded-t-none"
-            />
-            <Dropdown
-                value={search.time}
-                onChange={(e: DropdownChangeEvent) =>
-                    setSearch((prev) => ({
-                        ...prev,
-                        time: e.value,
-                    }))
+                options={
+                    search.type === "search" ? searchOptions : sr_userOptions
                 }
-                options={timeOptions}
-                className="md:hidden w-full rounded-t-none"
+                className="lg:hidden w-full rounded-t-none"
             />
-            <SelectButton
-                value={search.time}
-                onChange={(e: SelectButtonChangeEvent) =>
-                    setSearch((prev) => ({
-                        ...prev,
-                        time: e.value,
-                    }))
-                }
-                options={timeOptions}
-                className="hidden md:flex rounded-t-none"
-            />
+            {search.type !== "subreddit" && (
+                <>
+                    <Dropdown
+                        value={search.time}
+                        onChange={(e: DropdownChangeEvent) =>
+                            setSearch((prev) => ({
+                                ...prev,
+                                time: e.value,
+                            }))
+                        }
+                        options={timeOptions}
+                        className="lg:hidden w-full rounded-t-none"
+                    />
+                    <SelectButton
+                        value={search.time}
+                        onChange={(e: SelectButtonChangeEvent) =>
+                            setSearch((prev) => ({
+                                ...prev,
+                                time: e.value,
+                            }))
+                        }
+                        options={timeOptions}
+                        className="hidden lg:flex rounded-t-none"
+                    />
+                </>
+            )}
         </div>
     );
 }

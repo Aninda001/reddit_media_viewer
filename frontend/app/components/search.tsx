@@ -16,7 +16,7 @@ export default function Search() {
                 isSearching: true,
             }));
         }
-        console.log(search);
+        window.history.replaceState(null, "", "/");
     };
 
     return (
@@ -31,7 +31,7 @@ export default function Search() {
                         }))
                     }
                     options={Options}
-                    placeholder="Select a City"
+                    placeholder="Select a Type"
                     className="w-auto md:w-40 grow-0 md:shrink-0 rounded-none"
                 />
                 <InputText
