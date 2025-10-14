@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 type Media struct {
@@ -93,7 +95,7 @@ func resolveAbs(base *url.URL, ref string) string {
 
 func main() {
 	cookie := "front_page=default; post_sort=new; blur_spoiler=off; show_nsfw=on; blur_nsfw=off; use_hls=on; autoplay_videos=off; hide_awards=on; video_quality=best"
-	base_url := "http://localhost:8080"
+	base_url := os.Getenv("BASE_URL")
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
@@ -330,6 +332,6 @@ func main() {
 		}
 	})
 
-	fmt.Println("Server is running on port 8081")
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	fmt.Printf("Server is running on port %v", os.Getenv("PORT"))
+	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }

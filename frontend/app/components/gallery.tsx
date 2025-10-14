@@ -51,7 +51,8 @@ export default function Gallery() {
     const loaderRef = useRef<HTMLDivElement | null>(null);
 
     const getUrl = () => {
-        let baseUrl = "http://localhost:8081";
+        let baseUrl =
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
         if (search.type === "search") {
             return `${baseUrl}/search?q=${search.query}&sort=${search.sort.toLowerCase()}&time=${search.time.toLowerCase()}`;
         } else if (search.type === "user") {
