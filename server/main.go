@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/joho/godotenv/autoload"
@@ -45,11 +46,19 @@ func transformMediaURL(redlibURL string) string {
 		return ""
 	}
 
-	// Pattern 1: /preview/pre/{id}.{ext}?format=... -> https://i.redd.it/{id}.{original_ext}
-	previewRe := regexp.MustCompile(`^/preview/pre/([^/?]+\.[^/?]+)`)
-	if matches := previewRe.FindStringSubmatch(redlibURL); len(matches) > 1 {
-		filename := matches[1]
-		// Remove query parameters by splitting on '?'
+	isGIF := strings.Contains(strings.ToLower(redlibURL), ".gif")
+
+	// Pattern 1: /preview/pre/ or /preview/external-pre/ + {id}.{ext}?format=... -> https://i.redd.it/{id}.{original_ext}
+	previewRe := regexp.MustCompile(`^/preview/((?:external-)?pre)/(.+)`)
+	if matches := previewRe.FindStringSubmatch(redlibURL); len(matches) > 2 {
+		previewType := matches[1]    // "pre" or "external-pre"
+		pathWithParams := matches[2] // everything after pre/ including query params
+
+		if isGIF {
+			return "https://" + previewType + "view.redd.it/" + pathWithParams
+		}
+
+		filename := pathWithParams
 		if idx := strings.Index(filename, "?"); idx != -1 {
 			filename = filename[:idx]
 		}
@@ -74,32 +83,41 @@ func transformMediaURL(redlibURL string) string {
 	return redlibURL
 }
 
-func resolveAbs(base *url.URL, ref string) string {
-	ref = strings.TrimSpace(ref)
-	if ref == "" {
-		return ""
-	}
-
-	if strings.HasPrefix(ref, "/preview/pre/") ||
-		strings.HasPrefix(ref, "/img/") ||
-		strings.HasPrefix(ref, "/hls/") {
-		return transformMediaURL(ref)
-	}
-
-	u, err := url.Parse(ref)
-	if err != nil {
-		return ref
-	}
-	return base.ResolveReference(u).String()
-}
+// func resolveAbs(base *url.URL, ref string) string {
+// 	ref = strings.TrimSpace(ref)
+// 	if ref == "" {
+// 		return ""
+// 	}
+//
+// 	if strings.HasPrefix(ref, "/preview/") ||
+// 		strings.HasPrefix(ref, "/img/") ||
+// 		strings.HasPrefix(ref, "/hls/") {
+// 		return transformMediaURL(ref)
+// 	}
+//
+// 	u, err := url.Parse(ref)
+// 	if err != nil {
+// 		return ref
+// 	}
+// 	return base.ResolveReference(u).String()
+// }
 
 func main() {
-	cookie := "front_page=default; post_sort=new; blur_spoiler=off; show_nsfw=on; blur_nsfw=off; use_hls=on; autoplay_videos=off; hide_awards=on; video_quality=best"
-	base_url := os.Getenv("BASE_URL")
+	cookie := "front_page=default; blur_spoiler=off; show_nsfw=on; blur_nsfw=off; use_hls=on; hide_sidebar_and_summary=on; hide_score=on; hide_awards=on; video_quality=best"
+	instances := []string{
+		"https://redlib.catsarch.com",
+		"https://redlib.tiekoetter.com",
+		"https://redlib.canine.tools",
+		"https://lr.ptr.moe",
+		"https://redlib.nohost.network",
+		"https://l.opnxng.com",
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -110,22 +128,58 @@ func main() {
 			return
 		}
 
-		fetch_url := base_url + r.URL.Path
+		path := r.URL.Path
 		if r.URL.RawQuery != "" {
-			fetch_url += "?" + r.URL.RawQuery
+			path += "?" + r.URL.RawQuery
 		}
 
-		log.Printf("=== New Request: %s ===\n", fetch_url)
-		req, err := http.NewRequest("GET", fetch_url, nil)
-		if err != nil {
-			log.Fatal(err)
+		client := &http.Client{
+			Timeout: 10 * time.Second,
 		}
-		req.Header.Set("Cookie", cookie)
 
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			http.Error(w, "Failed to fetch URL: "+err.Error(), http.StatusInternalServerError)
+		var res *http.Response
+		var err error
+		var lastErr error
+		var base_url string
+
+		for _, baseURL := range instances {
+			if baseURL == "" {
+				continue
+			}
+			fetch_url := baseURL + path
+			log.Printf("Trying: %s\n", fetch_url)
+			req, err := http.NewRequest("GET", fetch_url, nil)
+			if err != nil {
+				log.Printf("Failed to create request for %s: %v\n", baseURL, err)
+				lastErr = err
+				continue
+			}
+
+			req.Header.Set("Cookie", cookie)
+			// req.Header.Set("User-Agent", "curl/8.11.1")
+			req.Header.Set("Accept", "text/html")
+
+			res, err = client.Do(req)
+			if err != nil {
+				log.Printf("Failed %s: %v\n", baseURL, err)
+				lastErr = err
+				continue
+			}
+
+			if res.StatusCode >= 200 && res.StatusCode < 300 {
+				base_url = baseURL
+				log.Printf("Success with: %s\n", baseURL)
+				break
+			}
+
+			res.Body.Close()
+			lastErr = fmt.Errorf("status code %d", res.StatusCode)
+			log.Printf("Failed %s: status %d\n", baseURL, res.StatusCode)
+		}
+
+		// If all instances failed
+		if res == nil || (res.StatusCode < 200 || res.StatusCode >= 300) {
+			http.Error(w, "All instances failed: "+lastErr.Error(), http.StatusServiceUnavailable)
 			return
 		}
 		defer res.Body.Close()
@@ -136,11 +190,11 @@ func main() {
 			return
 		}
 
-		base, err := url.Parse(base_url)
-		if err != nil {
-			http.Error(w, "bad base url: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
+		// base, err := url.Parse(base_url)
+		// if err != nil {
+		// 	http.Error(w, "bad base url: "+err.Error(), http.StatusInternalServerError)
+		// 	return
+		// }
 		posts := make([]Post, 0, 25)
 
 		doc.Find(".post").Each(func(i int, s *goquery.Selection) {
@@ -155,18 +209,11 @@ func main() {
 					// 	media.Poster = resolveAbs(base, poster)
 					// }
 					if vs, ok := v.Attr("src"); ok && strings.TrimSpace(vs) != "" {
-						if strings.Contains(vs, ".gif") && !strings.Contains(vs, "/external-pre/") {
-							media.Kind = "image"
-						}
-
-						media.Srcs = append(media.Srcs, resolveAbs(base, vs))
+						media.Srcs = append(media.Srcs, transformMediaURL(vs))
 					}
 					v.Find("source").Each(func(_ int, src *goquery.Selection) {
 						if ssrc, ok := src.Attr("src"); ok && strings.TrimSpace(ssrc) != "" {
-							if strings.Contains(ssrc, ".gif") && !strings.Contains(ssrc, "/external-pre/") {
-								media.Kind = "image"
-							}
-							media.Srcs = append(media.Srcs, resolveAbs(base, ssrc))
+							media.Srcs = append(media.Srcs, transformMediaURL(ssrc))
 						}
 					})
 					// if a := v.Find("a"); a.Length() > 0 {
@@ -197,15 +244,15 @@ func main() {
 					// }
 					// svg image element: <svg> <image href="...">
 					if imgHref, ok := a.Find("svg image").Attr("href"); ok && strings.TrimSpace(imgHref) != "" {
-						media.Srcs = append(media.Srcs, resolveAbs(base, imgHref))
+						media.Srcs = append(media.Srcs, transformMediaURL(imgHref))
 					}
 					// fallback desc > img src
 					if imgSrc, ok := a.Find("desc img").Attr("src"); ok && strings.TrimSpace(imgSrc) != "" {
-						media.Srcs = append(media.Srcs, resolveAbs(base, imgSrc))
+						media.Srcs = append(media.Srcs, transformMediaURL(imgSrc))
 					}
 					// also look for any img inside
 					if imgSrc2, ok := a.Find("img").Attr("src"); ok && strings.TrimSpace(imgSrc2) != "" {
-						media.Srcs = append(media.Srcs, resolveAbs(base, imgSrc2))
+						media.Srcs = append(media.Srcs, transformMediaURL(imgSrc2))
 					}
 
 					// dedupe and append if any srcs found
@@ -254,7 +301,7 @@ func main() {
 
 				galleryDoc.Find("div.gallery figure img").Each(func(i int, a *goquery.Selection) {
 					if href, ok := a.Attr("src"); ok {
-						mediaURL := resolveAbs(base, href)
+						mediaURL := transformMediaURL(href)
 						p.Media = append(p.Media, Media{
 							Kind: "image", // or "gif" if you want to check extension
 							Srcs: []string{mediaURL},
@@ -332,6 +379,6 @@ func main() {
 		}
 	})
 
-	fmt.Printf("Server is running on port %v", os.Getenv("PORT"))
+	fmt.Printf("Server is running on port %v\n", os.Getenv("PORT"))
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }

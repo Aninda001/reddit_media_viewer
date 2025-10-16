@@ -10,6 +10,7 @@ const Options: string[] = ["subreddit", "user", "search"];
 export default function Search() {
     const [search, setSearch] = useAtom(searchAtom);
     const clickhandler = () => {
+        if (search.query.trim() === "" && search.type !== "search") return;
         if (!search.isSearching) {
             setSearch((prev) => ({
                 ...prev,
