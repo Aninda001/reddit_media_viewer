@@ -71,14 +71,26 @@ export default function Gallery() {
                 isLoading: true,
             }));
             let url = getUrl();
-            let res = await fetch(url);
-            let data = await res.json();
-            setPosts(data);
-            setSearch((prev) => ({
-                ...prev,
-                isLoading: false,
-                isSearching: false,
-            }));
+            try {
+                let res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                let data = await res.json();
+                setPosts(data);
+                setSearch((prev) => ({
+                    ...prev,
+                    isLoading: false,
+                    isSearching: false,
+                }));
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                setSearch((prev) => ({
+                    ...prev,
+                    isLoading: false,
+                    isSearching: false,
+                }));
+            }
         };
         fetchData();
     }, [search.isSearching]);
@@ -90,17 +102,28 @@ export default function Gallery() {
             isLoading: true,
         }));
         let url = getUrl() + `&after=${posts.page_links.next}`;
-        let res = await fetch(url);
-        let data = await res.json();
-        setPosts((prev) => ({
-            posts: [...prev.posts, ...data.posts],
-            page_links: data.page_links,
-        }));
+        try {
+            let res = await fetch(url);
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            let data = await res.json();
+            setPosts((prev) => ({
+                posts: [...prev.posts, ...data.posts],
+                page_links: data.page_links,
+            }));
 
-        setSearch((prev) => ({
-            ...prev,
-            isLoading: false,
-        }));
+            setSearch((prev) => ({
+                ...prev,
+                isLoading: false,
+            }));
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            setSearch((prev) => ({
+                ...prev,
+                isLoading: false,
+            }));
+        }
     };
 
     useEffect(() => {
@@ -269,8 +292,8 @@ export default function Gallery() {
             {visible && (
                 <div
                     className="fixed inset-0 w-full h-full z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
-                    // onClick={closeDialog}
-                    //to stop closing when clicking
+                // onClick={closeDialog}
+                //to stop closing when clicking
                 >
                     <div className="relative w-full h-full flex flex-col items-center justify-center">
                         <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
@@ -371,9 +394,9 @@ export default function Gallery() {
                             aria-label="Next"
                             disabled={
                                 selectedPostIndex?.pind ===
-                                    posts.posts.length - 1 &&
+                                posts.posts.length - 1 &&
                                 selectedPostIndex?.mind ===
-                                    (currentPost?.media?.length || 1) - 1
+                                (currentPost?.media?.length || 1) - 1
                             }
                         />
                         <div className="absolute bottom-0 left-0 right-0 z-50 gap-2 flex justify-center px-6 py-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
