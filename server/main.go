@@ -105,11 +105,11 @@ func transformMediaURL(redlibURL string) string {
 func main() {
 	cookie := "front_page=default; blur_spoiler=off; show_nsfw=on; blur_nsfw=off; use_hls=on; hide_sidebar_and_summary=on; hide_score=on; hide_awards=on; video_quality=best"
 	instances := []string{
-		"https://redlib.catsarch.com",
 		"https://redlib.tiekoetter.com",
 		"https://redlib.canine.tools",
 		"https://lr.ptr.moe",
 		"https://redlib.nohost.network",
+		"https://redlib.catsarch.com",
 		"https://l.opnxng.com",
 	}
 
@@ -281,21 +281,26 @@ func main() {
 				}
 				galleryURL := base_url + galleryHref
 
+				fmt.Printf("Fetching gallery page: %s\n", galleryURL)
 				req, err := http.NewRequest("GET", galleryURL, nil)
 				if err != nil {
+					fmt.Print("Failed to create gallery request: " + err.Error() + "\n")
 					return
 				}
 				req.Header.Set("Cookie", cookie) // <-- set the cookie here
+				req.Header.Set("Accept", "text/html")
 
 				client := &http.Client{}
 				resp, err := client.Do(req)
 				if err != nil {
+					fmt.Print("Failed to fetch gallery page: " + err.Error() + "\n")
 					return
 				}
 				defer resp.Body.Close()
 
 				galleryDoc, err := goquery.NewDocumentFromReader(resp.Body)
 				if err != nil {
+					fmt.Print("Failed to parse gallery HTML: " + err.Error() + "\n")
 					return
 				}
 
