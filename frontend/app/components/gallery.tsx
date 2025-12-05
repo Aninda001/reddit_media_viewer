@@ -67,8 +67,8 @@ export default function Gallery() {
     const handleSwipe = useSwipeable({
         onSwipedLeft: () => goToNext(),
         onSwipedRight: () => goToPrev(),
-        onSwipedUp: () => goToPrev(),
-        onSwipedDown: () => goToNext(),
+        onSwipedUp: () => goToNext(),
+        onSwipedDown: () => goToPrev(),
     });
 
     useEffect(() => {
@@ -382,7 +382,7 @@ export default function Gallery() {
 
                                 goToPrev();
                             }}
-                            className="absolute left-4 z-40 top-1/2 -translate-y-1/2"
+                            className="hidden md:flex absolute left-4 z-40 top-1/2 -translate-y-1/2"
                             disabled={
                                 selectedPostIndex?.pind === 0 &&
                                 selectedPostIndex?.mind === 0
@@ -400,7 +400,7 @@ export default function Gallery() {
 
                                 goToNext();
                             }}
-                            className="absolute right-4 z-40 top-1/2 -translate-y-1/2"
+                            className="hidden md:flex absolute right-4 z-40 top-1/2 -translate-y-1/2"
                             severity="info"
                             aria-label="Next"
                             disabled={
