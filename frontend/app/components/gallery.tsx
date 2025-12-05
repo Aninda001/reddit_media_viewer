@@ -6,6 +6,7 @@ import { useAtom } from "jotai";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Button } from "primereact/button";
 import ReactPlayer from "react-player";
+import { useSwipeable } from "react-swipeable";
 // use react-player 2.16.1 the latest version have type issue
 import { Chip } from "primereact/chip";
 
@@ -62,6 +63,13 @@ export default function Gallery() {
         }
         return baseUrl;
     };
+
+    const handleSwipe = useSwipeable({
+        onSwipedLeft: () => goToNext(),
+        onSwipedRight: () => goToPrev(),
+        onSwipedUp: () => goToPrev(),
+        onSwipedDown: () => goToNext(),
+    });
 
     useEffect(() => {
         const fetchData = async () => {
@@ -251,7 +259,7 @@ export default function Gallery() {
     useEffect(() => {
         window.addEventListener("keydown", handleKeyPress);
         return () => window.removeEventListener("keydown", handleKeyPress);
-    }, [visible, selectedPostIndex]);
+    }, [visible, selectedPostIndex, posts]);
 
     const currentPost = useMemo(
         () =>
@@ -336,7 +344,10 @@ export default function Gallery() {
                             />
                         </div>
 
-                        <div className="max-w-full mx-4 max-h-full flex items-center justify-center pt-20 pb-16">
+                        <div
+                            {...handleSwipe}
+                            className="max-w-full mx-4 max-h-full flex items-center justify-center pt-20 pb-16 w-[95%] h-full"
+                        >
                             {currentMedia && currentMedia.kind === "image" ? (
                                 <img
                                     src={currentMedia.srcs?.[0] || ""}

@@ -8,20 +8,21 @@
     "start": "next start"
   },
   "dependencies": {
-    "jotai": "^2.15.0",
+    "jotai": "^2.15.2",
     "next": "15.5.4",
     "primeicons": "^7.0.0",
     "primereact": "^10.9.7",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-player": "^3.3.3"
+    "react-player": "^3.4.0",
+    "react-swipeable": "^7.0.2"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/node": "^20.19.25",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.1.17",
+    "typescript": "^5.9.3"
   }
 }

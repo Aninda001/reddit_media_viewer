@@ -105,6 +105,7 @@ func transformMediaURL(redlibURL string) string {
 func main() {
 	cookie := "front_page=default; blur_spoiler=off; show_nsfw=on; blur_nsfw=off; use_hls=on; hide_sidebar_and_summary=on; hide_score=on; hide_awards=on; video_quality=best"
 	instances := []string{
+		"http://localhost:8080",
 		"https://redlib.tiekoetter.com",
 		"https://redlib.canine.tools",
 		"https://lr.ptr.moe",
