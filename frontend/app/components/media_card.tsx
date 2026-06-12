@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useRef } from "react";
 import { Card } from "primereact/card";
 import { Avatar } from "primereact/avatar";
 import ReactPlayer from "react-player";
@@ -59,7 +58,7 @@ export default function MediaCard({
                         className: "text-wrap font-normal leading-none text-lg",
                     },
                     body: {
-                        className: "pt-0",
+                        className: "pt-0 cursor-pointer",
                         onClick: () => {
                             click(index);
                         },

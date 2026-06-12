@@ -7,6 +7,7 @@ import { ProgressSpinner } from "primereact/progressspinner";
 import { Button } from "primereact/button";
 import ReactPlayer from "react-player";
 import { useSwipeable } from "react-swipeable";
+import { VirtuosoGrid } from "react-virtuoso";
 // use react-player 2.16.1 the latest version have type issue
 import { Chip } from "primereact/chip";
 
@@ -134,29 +135,29 @@ export default function Gallery() {
         }
     };
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const target = entries[0];
-                if (
-                    target.isIntersecting &&
-                    !search.isLoading &&
-                    !search.isSearching &&
-                    posts.page_links.next
-                ) {
-                    loadMore();
-                }
-            },
-            { rootMargin: "300px" },
-        );
-        if (loaderRef.current) {
-            observer.observe(loaderRef.current);
-        }
-        return () => {
-            observer.disconnect();
-        };
-    }, [posts.page_links.next, search.isLoading, search.isSearching]);
-
+    // useEffect(() => {
+    //     const observer = new IntersectionObserver(
+    //         (entries) => {
+    //             const target = entries[0];
+    //             if (
+    //                 target.isIntersecting &&
+    //                 !search.isLoading &&
+    //                 !search.isSearching &&
+    //                 posts.page_links.next
+    //             ) {
+    //                 loadMore();
+    //             }
+    //         },
+    //         { rootMargin: "300px" },
+    //     );
+    //     if (loaderRef.current) {
+    //         observer.observe(loaderRef.current);
+    //     }
+    //     return () => {
+    //         observer.disconnect();
+    //     };
+    // }, [posts.page_links.next, search.isLoading, search.isSearching]);
+    //
     useEffect(() => {
         if (visible) {
             document.body.style.overflow = "hidden";
@@ -279,24 +280,37 @@ export default function Gallery() {
     );
     return (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                {!search.isSearching &&
-                    posts.posts?.map((post: Post, index: number) => (
-                        <MediaCard
-                            key={post.id}
-                            post={post}
-                            click={handleCardClick}
-                            index={index}
-                            customClass="cursor-pointer"
-                        />
-                    ))}
-            </div>
-            {search.isLoading && (
-                <div className="card flex justify-content-center">
-                    <ProgressSpinner />
-                </div>
-            )}
-            <div ref={loaderRef} className="h-4" />
+            <VirtuosoGrid
+                useWindowScroll
+                totalCount={posts.posts.length}
+                endReached={() => {
+                    if (
+                        !search.isLoading &&
+                        !search.isSearching &&
+                        posts.page_links.next
+                    )
+                        loadMore();
+                }}
+                increaseViewportBy={{ top: 1000, bottom: 1000 }}
+                listClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4"
+                components={{
+                    Footer: () =>
+                        search.isLoading ? (
+                            <div className="flex justify-center py-4">
+                                <ProgressSpinner />
+                            </div>
+                        ) : null,
+                }}
+                itemContent={(index) => (
+                    <MediaCard
+                        key={posts.posts[index].id || index}
+                        post={posts.posts[index]}
+                        click={handleCardClick}
+                        index={index}
+                        customClass="cursor-pointer"
+                    />
+                )}
+            />
             {visible && (
                 <div
                     className="fixed inset-0 w-full h-full z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
