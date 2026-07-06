@@ -1,5 +1,12 @@
 "use client";
-import { useEffect, useState, useRef, useMemo } from "react";
+import {
+    useEffect,
+    useState,
+    useRef,
+    useMemo,
+    useCallback,
+    forwardRef,
+} from "react";
 import MediaCard from "./media_card";
 import { searchAtom } from "../page";
 import { useAtom } from "jotai";
@@ -75,6 +82,7 @@ export default function Gallery() {
     useEffect(() => {
         const fetchData = async () => {
             if (!search.isSearching) return;
+            setPosts({ posts: [], page_links: {} });
             setSearch((prev) => ({
                 ...prev,
                 isLoading: true,
@@ -104,7 +112,7 @@ export default function Gallery() {
         fetchData();
     }, [search.isSearching]);
 
-    const loadMore = async () => {
+    const loadMore = useCallback(async () => {
         if (!posts.page_links.next) return;
         setSearch((prev) => ({
             ...prev,
@@ -133,8 +141,37 @@ export default function Gallery() {
                 isLoading: false,
             }));
         }
-    };
+    }, [posts.page_links.next]);
 
+    const gridComponents = useMemo(
+        () => ({
+            List: forwardRef<HTMLDivElement, any>(
+                ({ style, children, ...props }, ref) => (
+                    <div
+                        ref={ref}
+                        {...props}
+                        className="flex flex-wrap p-4"
+                        style={{ ...style, display: "flex", flexWrap: "wrap" }}
+                    >
+                        {children}
+                    </div>
+                ),
+            ),
+            // FIX 4: Use padding on the Item instead of CSS grid gap so Virtuoso measures it correctly
+            Item: ({ children, ...props }: any) => (
+                <div {...props} className="w-full md:w-1/2 lg:w-1/3 p-2">
+                    {children}
+                </div>
+            ),
+            Footer: () =>
+                search.isLoading ? (
+                    <div className="flex justify-center py-4 w-full">
+                        <ProgressSpinner />
+                    </div>
+                ) : null,
+        }),
+        [search.isLoading],
+    );
     // useEffect(() => {
     //     const observer = new IntersectionObserver(
     //         (entries) => {
@@ -192,7 +229,7 @@ export default function Gallery() {
         setSelectedPostIndex(null);
     };
 
-    const goToNext = () => {
+    const goToNext = useCallback(() => {
         if (selectedPostIndex === null) return;
 
         const { pind, mind } = selectedPostIndex;
@@ -211,9 +248,9 @@ export default function Gallery() {
         if (!search.isLoading && pind >= posts.posts.length - 5) {
             loadMore();
         }
-    };
+    }, [selectedPostIndex, posts, search.isLoading, loadMore]);
 
-    const goToPrev = () => {
+    const goToPrev = useCallback(() => {
         if (selectedPostIndex === null) return;
 
         const { pind, mind } = selectedPostIndex;
@@ -231,31 +268,34 @@ export default function Gallery() {
                 });
             }
         }
-    };
+    }, [selectedPostIndex, posts]);
 
-    const handleKeyPress = (e: KeyboardEvent) => {
-        if (!visible) return;
-        if (e.key === "ArrowDown") goToNext();
-        if (e.key === "ArrowUp") goToPrev();
+    const handleKeyPress = useCallback(
+        (e: KeyboardEvent) => {
+            if (!visible) return;
+            if (e.key === "ArrowDown") goToNext();
+            if (e.key === "ArrowUp") goToPrev();
 
-        if (e.key === " " && playerRef.current) {
-            if (playerRef.current?.paused) {
-                playerRef.current.play();
-            } else {
-                playerRef.current.pause();
+            if (e.key === " " && playerRef.current) {
+                if (playerRef.current?.paused) {
+                    playerRef.current.play();
+                } else {
+                    playerRef.current.pause();
+                }
             }
-        }
-        if (e.key === "ArrowRight") {
-            if (playerRef.current) {
-                playerRef.current.currentTime += 5;
+            if (e.key === "ArrowRight") {
+                if (playerRef.current) {
+                    playerRef.current.currentTime += 5;
+                }
             }
-        }
-        if (e.key === "ArrowLeft") {
-            if (playerRef.current) {
-                playerRef.current.currentTime -= 5;
+            if (e.key === "ArrowLeft") {
+                if (playerRef.current) {
+                    playerRef.current.currentTime -= 5;
+                }
             }
-        }
-    };
+        },
+        [visible, goToNext, goToPrev],
+    );
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyPress);
@@ -278,39 +318,39 @@ export default function Gallery() {
 
         [selectedPostIndex, currentPost],
     );
+    const isLoadingInitial = search.isLoading && posts.posts.length === 0;
     return (
         <>
-            <VirtuosoGrid
-                useWindowScroll
-                totalCount={posts.posts.length}
-                endReached={() => {
-                    if (
-                        !search.isLoading &&
-                        !search.isSearching &&
-                        posts.page_links.next
-                    )
-                        loadMore();
-                }}
-                increaseViewportBy={{ top: 1000, bottom: 1000 }}
-                listClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4"
-                components={{
-                    Footer: () =>
-                        search.isLoading ? (
-                            <div className="flex justify-center py-4">
-                                <ProgressSpinner />
-                            </div>
-                        ) : null,
-                }}
-                itemContent={(index) => (
-                    <MediaCard
-                        key={posts.posts[index].id || index}
-                        post={posts.posts[index]}
-                        click={handleCardClick}
-                        index={index}
-                        customClass="cursor-pointer"
-                    />
-                )}
-            />
+            {isLoadingInitial ? (
+                <div className="flex justify-center py-10">
+                    <ProgressSpinner />
+                </div>
+            ) : (
+                <VirtuosoGrid
+                    useWindowScroll
+                    totalCount={posts.posts.length}
+                    endReached={() => {
+                        if (
+                            !search.isLoading &&
+                            !search.isSearching &&
+                            posts.page_links.next
+                        ) {
+                            loadMore();
+                        }
+                    }}
+                    increaseViewportBy={{ top: 1000, bottom: 1000 }}
+                    components={gridComponents}
+                    itemContent={(index) => (
+                        <MediaCard
+                            key={posts.posts[index].id || index}
+                            post={posts.posts[index]}
+                            click={handleCardClick}
+                            index={index}
+                            customClass="cursor-pointer"
+                        />
+                    )}
+                />
+            )}
             {visible && (
                 <div
                     className="fixed inset-0 w-full h-full z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
