@@ -42,6 +42,7 @@ type PageLinks struct {
 
 func transformMediaURL(redlibURL string) string {
 	redlibURL = strings.TrimSpace(redlibURL)
+	fmt.Printf("Transforming redlib URL: %s\n", redlibURL)
 	if redlibURL == "" {
 		return ""
 	}
@@ -80,38 +81,56 @@ func transformMediaURL(redlibURL string) string {
 		return "https://v.redd.it/" + videoID + "/" + path
 	}
 
+	redgifRe := regexp.MustCompile(`^/redgifs/([^/?]+)`)
+	if matches := redgifRe.FindStringSubmatch(redlibURL); len(matches) > 1 {
+		redgifID := matches[1]
+		fmt.Printf("Transforming redgif URL: %s -> https://media.redgifs.com/%s.mp4\n", redlibURL, redgifID)
+		return "https://api.redgifs.com/v2/gifs/" + redgifID + "/hd.m3u8"
+	}
+
 	return redlibURL
 }
 
-// func resolveAbs(base *url.URL, ref string) string {
-// 	ref = strings.TrimSpace(ref)
-// 	if ref == "" {
-// 		return ""
-// 	}
+//	func resolveAbs(base *url.URL, ref string) string {
+//		ref = strings.TrimSpace(ref)
+//		if ref == "" {
+//			return ""
+//		}
 //
-// 	if strings.HasPrefix(ref, "/preview/") ||
-// 		strings.HasPrefix(ref, "/img/") ||
-// 		strings.HasPrefix(ref, "/hls/") {
-// 		return transformMediaURL(ref)
-// 	}
+//		if strings.HasPrefix(ref, "/preview/") ||
+//			strings.HasPrefix(ref, "/img/") ||
+//			strings.HasPrefix(ref, "/hls/") {
+//			return transformMediaURL(ref)
+//		}
 //
-// 	u, err := url.Parse(ref)
-// 	if err != nil {
-// 		return ref
-// 	}
-// 	return base.ResolveReference(u).String()
-// }
+//		u, err := url.Parse(ref)
+//		if err != nil {
+//			return ref
+//		}
+//		return base.ResolveReference(u).String()
+//	}
+//
+// getRedlibInstances returns the list of Redlib instances to scrape, in order
+// of preference. Configured via the REDLIB_INSTANCES env var as a
+// comma-separated list. The self-hosted instance is the default.
+func getRedlibInstances() []string {
+	raw := strings.TrimSpace(os.Getenv("REDLIB_INSTANCES"))
+	if raw == "" {
+		raw = "http://localhost:8080"
+	}
+
+	var instances []string
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimRight(strings.TrimSpace(part), "/"); trimmed != "" {
+			instances = append(instances, trimmed)
+		}
+	}
+	return instances
+}
 
 func main() {
 	cookie := "front_page=default; blur_spoiler=off; show_nsfw=on; blur_nsfw=off; use_hls=on; hide_sidebar_and_summary=on; hide_score=on; hide_awards=on; video_quality=best"
-	instances := []string{
-		"https://redlib.canine.tools",
-		"https://lr.ptr.moe",
-		"https://redlib.nohost.network",
-		"https://redlib.tiekoetter.com",
-		"https://redlib.catsarch.com",
-		"https://l.opnxng.com",
-	}
+	instances := getRedlibInstances()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
